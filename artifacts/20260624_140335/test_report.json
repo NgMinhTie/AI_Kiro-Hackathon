@@ -1,0 +1,57 @@
+{
+  "passed": 8,
+  "failed": 0,
+  "coverage_percentage": 96.0,
+  "quality_gate_status": "met",
+  "coverage_note": null,
+  "results": [
+    {
+      "criterion_id": "1.1",
+      "name": "test_1_1_tip_amount_calculated",
+      "status": "passed",
+      "detail": ""
+    },
+    {
+      "criterion_id": "2.1",
+      "name": "test_2_1_total_with_tip",
+      "status": "passed",
+      "detail": ""
+    },
+    {
+      "criterion_id": "3.1",
+      "name": "test_3_1_per_person_amount",
+      "status": "passed",
+      "detail": ""
+    },
+    {
+      "criterion_id": "4.1",
+      "name": "test_4_1_zero_tip",
+      "status": "passed",
+      "detail": ""
+    },
+    {
+      "criterion_id": "5.1",
+      "name": "test_5_1_reject_invalid_people",
+      "status": "passed",
+      "detail": ""
+    },
+    {
+      "criterion_id": "5.1",
+      "name": "test_5_1_reject_non_integer_people",
+      "status": "passed",
+      "detail": ""
+    },
+    {
+      "criterion_id": "6.1",
+      "name": "test_6_1_reject_negative_bill",
+      "status": "passed",
+      "detail": ""
+    },
+    {
+      "criterion_id": "6.1",
+      "name": "test_6_1_reject_negative_tip_pct",
+      "status": "passed",
+      "detail": ""
+    }
+  ]
+}

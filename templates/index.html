@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoSpec — AI Multi-Agent Pipeline</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--bg:#0a0a1a;--surface:#131328;--surface2:#1a1a3e;--accent:#00d4ff;--accent2:#7c3aed;--success:#10b981;--warning:#f59e0b;--error:#ef4444;--text:#e2e8f0;--text-dim:#94a3b8;--border:#2d2d5e}
+        body{font-family:'SF Mono','Fira Code','JetBrains Mono',monospace;background:var(--bg);color:var(--text);min-height:100vh}
+        .header{padding:1rem 2rem;background:linear-gradient(135deg,var(--surface) 0%,var(--surface2) 100%);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+        .header h1{font-size:1.3rem;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .header .subtitle{color:var(--text-dim);font-size:0.7rem;margin-top:0.15rem}
+        .badge{background:linear-gradient(135deg,var(--accent2),#ec4899);color:white;padding:0.2rem 0.7rem;border-radius:1rem;font-size:0.6rem;font-weight:bold;letter-spacing:0.05em}
+        .main{display:grid;grid-template-columns:300px 1fr;height:calc(100vh - 60px)}
+        .sidebar{background:var(--surface);border-right:1px solid var(--border);padding:1rem;overflow-y:auto;display:flex;flex-direction:column;gap:0.8rem}
+        .sidebar h2{font-size:0.7rem;color:var(--accent);text-transform:uppercase;letter-spacing:0.1em}
+        .input-group{margin-bottom:0.6rem}
+        .input-group label{display:block;font-size:0.65rem;color:var(--text-dim);margin-bottom:0.3rem;text-transform:uppercase}
+        textarea,select,input[type="number"]{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:0.5rem;border-radius:0.4rem;font-family:inherit;font-size:0.75rem;resize:vertical}
+        textarea{min-height:80px}
+        textarea:focus,select:focus,input:focus{outline:none;border-color:var(--accent)}
+        .btn{width:100%;padding:0.65rem;border:none;border-radius:0.4rem;font-family:inherit;font-size:0.8rem;font-weight:bold;cursor:pointer;transition:all 0.2s;text-transform:uppercase;letter-spacing:0.05em}
+        .btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:white}
+        .btn-primary:hover{opacity:0.9;transform:translateY(-1px)}
+        .btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+        .btn-secondary{background:transparent;color:var(--accent);border:1px solid var(--accent);margin-top:0.4rem;font-size:0.7rem}
+        .btn-warning{background:linear-gradient(135deg,var(--warning),var(--error));color:white;margin-top:0.4rem;font-size:0.7rem}
+        .btn-sm{padding:0.4rem 0.6rem;font-size:0.65rem;width:auto;border-radius:0.3rem}
+        .pipeline-view{padding:1rem;overflow-y:auto;display:flex;flex-direction:column;gap:1rem}
+        .pipeline-diagram{display:flex;align-items:center;justify-content:center;gap:0.3rem;padding:0.8rem;background:var(--surface);border-radius:0.5rem;border:1px solid var(--border)}
+        .agent-node{display:flex;flex-direction:column;align-items:center;gap:0.15rem;padding:0.5rem 0.8rem;border-radius:0.4rem;border:2px solid var(--border);min-width:75px;transition:all 0.4s}
+        .agent-node.active{border-color:var(--accent);box-shadow:0 0 20px rgba(0,212,255,0.4);animation:pulse 1.5s infinite}
+        .agent-node.done{border-color:var(--success);background:rgba(16,185,129,0.1)}
+        .agent-node.error{border-color:var(--error);background:rgba(239,68,68,0.1)}
+        .agent-node.retry{border-color:var(--warning);background:rgba(245,158,11,0.1);animation:pulse 1.5s infinite}
+        .agent-node .icon{font-size:1.2rem}
+        .agent-node .name{font-size:0.55rem;color:var(--text-dim);text-align:center}
+        .arrow{color:var(--border);font-size:1rem;transition:color 0.4s}
+        .arrow.active{color:var(--accent)}
+        .arrow.retry{color:var(--warning)}
+        @keyframes pulse{0%,100%{box-shadow:0 0 15px rgba(0,212,255,0.3)}50%{box-shadow:0 0 30px rgba(0,212,255,0.6)}}
+        .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem}
+        .summary-card{background:var(--surface);border:1px solid var(--border);border-radius:0.4rem;padding:0.5rem;text-align:center;transition:all 0.3s}
+        .summary-card .value{font-size:1.1rem;font-weight:bold;color:var(--accent)}
+        .summary-card .label{font-size:0.55rem;color:var(--text-dim);text-transform:uppercase;margin-top:0.15rem}
+        .summary-card.success .value{color:var(--success)}
+        .summary-card.warning .value{color:var(--warning)}
+        .summary-card.error .value{color:var(--error)}
+        .event-log{background:var(--surface);border-radius:0.5rem;border:1px solid var(--border);overflow:hidden;flex:1;display:flex;flex-direction:column}
+        .event-log-header{padding:0.5rem 0.8rem;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0.4rem}
+        .event-log-header .dot{width:7px;height:7px;border-radius:50%;background:var(--success);animation:blink 1s infinite}
+        @keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+        .event-log-header span{font-size:0.7rem;color:var(--text-dim)}
+        .events{padding:0.6rem;overflow-y:auto;flex:1;scroll-behavior:smooth}
+        .event{padding:0.5rem;margin-bottom:0.3rem;border-radius:0.3rem;background:var(--bg);border-left:3px solid var(--border);animation:slideIn 0.3s ease}
+        @keyframes slideIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+        .event.stage_start{border-left-color:var(--accent)}
+        .event.stage_output{border-left-color:var(--text-dim)}
+        .event.handoff{border-left-color:var(--accent2)}
+        .event.error{border-left-color:var(--error)}
+        .event.done{border-left-color:var(--success)}
+        .event.verdict{border-left-color:var(--success)}
+        .event.verdict.fail{border-left-color:var(--error)}
+        .event.reattempt{border-left-color:var(--warning)}
+        .event.artifact_saved{border-left-color:var(--warning)}
+        .event.run_start{border-left-color:var(--accent)}
+        .event-header{display:flex;align-items:center;gap:0.3rem;margin-bottom:0.15rem}
+        .event-type{font-size:0.55rem;text-transform:uppercase;padding:0.1rem 0.25rem;border-radius:0.2rem;font-weight:bold;background:rgba(0,212,255,0.12);color:var(--accent)}
+        .event.handoff .event-type{background:rgba(124,58,237,0.15);color:var(--accent2)}
+        .event.reattempt .event-type{background:rgba(245,158,11,0.15);color:var(--warning)}
+        .event.error .event-type{background:rgba(239,68,68,0.15);color:var(--error)}
+        .event.done .event-type{background:rgba(16,185,129,0.15);color:var(--success)}
+        .event-agent{font-size:0.65rem;color:var(--accent);font-weight:bold}
+        .event-time{font-size:0.55rem;color:var(--text-dim);margin-left:auto}
+        .event-data{font-size:0.7rem;color:var(--text-dim);white-space:pre-wrap;word-break:break-word;max-height:120px;overflow-y:auto;line-height:1.4}
+        .actions-bar{display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap}
+        .hidden{display:none}
+        .history{margin-top:auto;border-top:1px solid var(--border);padding-top:0.8rem}
+        .history h2{margin-bottom:0.4rem}
+        .history-item{font-size:0.6rem;padding:0.3rem;background:var(--bg);border-radius:0.2rem;margin-bottom:0.2rem;display:flex;justify-content:space-between;align-items:center}
+        .history-item .status{font-weight:bold}
+        .history-item .status.completed{color:var(--success)}
+        .history-item .status.failed{color:var(--error)}
+        .retry-badge{background:var(--warning);color:#000;padding:0.1rem 0.4rem;border-radius:0.8rem;font-size:0.55rem;font-weight:bold;animation:pulse 2s infinite}
+        @media(max-width:768px){.main{grid-template-columns:1fr}.summary{grid-template-columns:repeat(3,1fr)}}
+    </style>
+</head>
+<body>
+<div class="header">
+    <div>
+        <h1>⚡ AutoSpec</h1>
+        <div class="subtitle">AI Multi-Agent Pipeline · Brief → Spec → Code → Test → Review</div>
+    </div>
+    <div class="badge">AWS KIRO HACKATHON · CHALLENGE 8</div>
+</div>
+<div class="main">
+    <div class="sidebar">
+        <h2>📝 Product Brief</h2>
+        <div class="input-group">
+            <label>Describe what to build (plain English)</label>
+            <textarea id="brief" placeholder="e.g. Build a tip calculator that takes a bill total..."></textarea>
+        </div>
+        <div class="input-group">
+            <label>Tech Stack</label>
+            <select id="tech_stack"><option value="Python">Python</option><option value="Node">Node.js</option></select>
+        </div>
+        <div class="input-group">
+            <label>Coverage Threshold (%)</label>
+            <input type="number" id="quality_threshold" value="90" min="0" max="100">
+        </div>
+        <button class="btn btn-primary" id="runBtn" onclick="startPipeline(false)">🚀 Run Pipeline</button>
+        <button class="btn btn-warning" onclick="startPipeline(true)">🔄 Run with Self-Correction Demo</button>
+        <button class="btn btn-secondary" onclick="loadDemo()">📋 Load Tip-Calculator Brief</button>
+        <button class="btn btn-secondary" id="downloadBtn" onclick="downloadArtifacts()" style="display:none">📦 Download Artifacts (.zip)</button>
+
+        <div class="history" id="historyPanel">
+            <h2>📜 Run History</h2>
+            <div id="historyList"><div style="font-size:0.6rem;color:var(--text-dim)">No runs yet</div></div>
+        </div>
+    </div>
+    <div class="pipeline-view">
+        <div class="pipeline-diagram">
+            <div class="agent-node" id="node-spec"><div class="icon">📄</div><div class="name">Spec Agent</div></div>
+            <div class="arrow" id="arrow-1">→</div>
+            <div class="agent-node" id="node-build"><div class="icon">🔨</div><div class="name">Build Agent</div></div>
+            <div class="arrow" id="arrow-2">→</div>
+            <div class="agent-node" id="node-test"><div class="icon">🧪</div><div class="name">Test Agent</div></div>
+            <div class="arrow" id="arrow-3">→</div>
+            <div class="agent-node" id="node-review"><div class="icon">✅</div><div class="name">Review Agent</div></div>
+            <div class="arrow hidden" id="arrow-retry" style="margin-left:0.5rem">↩️</div>
+            <span class="retry-badge hidden" id="retryBadge">RETRY</span>
+        </div>
+        <div class="summary hidden" id="summary">
+            <div class="summary-card success"><div class="value" id="val-verdict">—</div><div class="label">Verdict</div></div>
+            <div class="summary-card"><div class="value" id="val-coverage">—</div><div class="label">Coverage</div></div>
+            <div class="summary-card success"><div class="value" id="val-tests">—</div><div class="label">Passed</div></div>
+            <div class="summary-card"><div class="value" id="val-failed">—</div><div class="label">Failed</div></div>
+            <div class="summary-card"><div class="value" id="val-retries">—</div><div class="label">Retries</div></div>
+        </div>
+        <div class="event-log">
+            <div class="event-log-header">
+                <div class="dot" id="live-dot" style="display:none"></div>
+                <span>Agent Activity Stream</span>
+            </div>
+            <div class="events" id="events">
+                <div class="event run_start"><div class="event-data">👋 Ready! Load the demo brief or type your own product description.\n\n💡 Try "Run with Self-Correction Demo" to see the retry loop in action!</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+let running=false, lastRunId='';
+function loadDemo(){
+    fetch('/api/demo-brief').then(r=>r.json()).then(d=>{
+        document.getElementById('brief').value=d.brief;
+        document.getElementById('tech_stack').value=d.tech_stack;
+        document.getElementById('quality_threshold').value=d.quality_threshold;
+    });
+}
+function resetUI(){
+    document.getElementById('events').innerHTML='';
+    document.getElementById('summary').classList.add('hidden');
+    document.getElementById('downloadBtn').style.display='none';
+    document.getElementById('arrow-retry').classList.add('hidden');
+    document.getElementById('retryBadge').classList.add('hidden');
+    ['spec','build','test','review'].forEach(id=>document.getElementById('node-'+id).className='agent-node');
+    ['1','2','3'].forEach(id=>document.getElementById('arrow-'+id).className='arrow');
+}
+function setActive(agent){
+    const map={'Spec Agent':'spec','Build Agent':'build','Test Agent':'test','Review Agent':'review'};
+    for(const[k,v]of Object.entries(map))if(agent.includes(k))document.getElementById('node-'+v).className='agent-node active';
+}
+function setDone(from){
+    const map={'Spec Agent':'spec','Build Agent':'build','Test Agent':'test','Review Agent':'review'};
+    const arrowMap={'Spec Agent':'1','Build Agent':'2','Test Agent':'3'};
+    for(const[k,v]of Object.entries(map))if(from.includes(k))document.getElementById('node-'+v).className='agent-node done';
+    for(const[k,v]of Object.entries(arrowMap))if(from.includes(k))document.getElementById('arrow-'+v).className='arrow active';
+}
+function addEvent(type,agent,text){
+    const el=document.createElement('div');
+    el.className='event '+type;
+    if(type==='verdict'&&text.includes('NOT ALIGNED'))el.className+=' fail';
+    const time=new Date().toLocaleTimeString();
+    const preview=text.length>500?text.substring(0,500)+'…':text;
+    el.innerHTML=`<div class="event-header"><span class="event-type">${type.replace('_',' ')}</span><span class="event-agent">${agent}</span><span class="event-time">${time}</span></div><div class="event-data">${escapeHtml(preview)}</div>`;
+    document.getElementById('events').appendChild(el);
+    el.scrollIntoView({behavior:'smooth'});
+}
+function escapeHtml(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML}
+function startPipeline(demoRetry){
+    if(running)return;
+    running=true;
+    resetUI();
+    document.getElementById('runBtn').disabled=true;
+    document.getElementById('runBtn').textContent='⏳ Running...';
+    document.getElementById('live-dot').style.display='block';
+    const body={
+        brief:document.getElementById('brief').value,
+        tech_stack:document.getElementById('tech_stack').value,
+        quality_threshold:document.getElementById('quality_threshold').value,
+        demo_retry:demoRetry
+    };
+    fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+    .then(response=>{
+        const reader=response.body.getReader();
+        const decoder=new TextDecoder();
+        let buffer='';
+        function read(){
+            reader.read().then(({done,value})=>{
+                if(done){finish();return}
+                buffer+=decoder.decode(value,{stream:true});
+                const lines=buffer.split('\n');
+                buffer=lines.pop();
+                for(const line of lines){
+                    if(line.startsWith('data: ')){
+                        try{handleEvent(JSON.parse(line.substring(6)))}catch(e){}
+                    }
+                }
+                read();
+            });
+        }
+        read();
+    }).catch(e=>{addEvent('error','Connection',e.message);finish()});
+}
+function handleEvent(ev){
+    const{type,data}=ev;
+    const agent=data.agent||'';
+    let text='';
+    if(type==='run_start'){
+        text='Pipeline started → '+data.artifact_dir;
+        lastRunId=data.artifact_dir.split('/').pop();
+    }
+    else if(type==='stage_start'){setActive(agent);text='⏳ '+agent+' working...';}
+    else if(type==='stage_output'){
+        text=(data.title||'')+'\n'+(data.content||'').substring(0,400);
+    }
+    else if(type==='handoff'){setDone(data.from);text='✋ '+data.from+' → '+data.to;}
+    else if(type==='verdict'){
+        text=data.verdict+' | Coverage: '+(data.coverage||0)+'% | Gate: '+data.gate;
+        if(data.gaps&&data.gaps.length>0)text+='\nGaps: '+data.gaps.map(g=>g.id+': '+g.discrepancy).join('; ');
+        if(data.verdict==='ALIGNED')document.getElementById('node-review').className='agent-node done';
+        else document.getElementById('node-review').className='agent-node error';
+    }
+    else if(type==='reattempt'){
+        text='🔄 Re-attempt '+data.attempt+'/'+data.limit+' — fixing: '+data.gaps.map(g=>g.id).join(', ');
+        document.getElementById('arrow-retry').classList.remove('hidden');
+        document.getElementById('retryBadge').classList.remove('hidden');
+        // Reset build/test/review for retry
+        ['build','test','review'].forEach(id=>document.getElementById('node-'+id).className='agent-node');
+    }
+    else if(type==='error'){text='❌ '+agent+': '+data.message;}
+    else if(type==='done'){
+        text='✅ Pipeline '+data.status+(data.error?' — '+data.error:'');
+        showSummary(data);
+        document.getElementById('downloadBtn').style.display='block';
+    }
+    else if(type==='artifact_saved'){text='💾 Saved: '+data.name;}
+    else{text=JSON.stringify(data)}
+    if(type!=='keepalive')addEvent(type,agent,text);
+}
+function showSummary(data){
+    document.getElementById('summary').classList.remove('hidden');
+    const v=data.verdict||data.status||'—';
+    document.getElementById('val-verdict').textContent=v==='ALIGNED'?'✅ ALIGNED':v==='completed'?'✅':'❌ '+v;
+    document.getElementById('val-coverage').textContent=(data.coverage||0)+'%';
+    document.getElementById('val-tests').textContent=data.passed||'—';
+    document.getElementById('val-failed').textContent=data.failed||'0';
+    document.getElementById('val-retries').textContent=data.reattempts||0;
+    refreshHistory();
+}
+function downloadArtifacts(){
+    if(lastRunId)window.open('/api/artifacts/'+lastRunId,'_blank');
+}
+function refreshHistory(){
+    fetch('/api/history').then(r=>r.json()).then(runs=>{
+        const el=document.getElementById('historyList');
+        if(!runs.length){el.innerHTML='<div style="font-size:0.6rem;color:var(--text-dim)">No runs yet</div>';return;}
+        el.innerHTML=runs.map(r=>`<div class="history-item"><span>${r.brief.substring(0,30)}…</span><span class="status ${r.status}">${r.status}</span></div>`).join('');
+    });
+}
+function finish(){
+    running=false;
+    document.getElementById('runBtn').disabled=false;
+    document.getElementById('runBtn').textContent='🚀 Run Pipeline';
+    document.getElementById('live-dot').style.display='none';
+}
+loadDemo();
+</script>
+</body>
+</html>
